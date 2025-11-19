@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Conflicting Visions: Mobile</title>
+    <style>
+        :root {
+            --bg-color: #2c3e50;
+            --card-bg: #ecf0f1;
+            --text-color: #2c3e50;
+            --accent: #e74c3c;
+            --secondary: #3498db;
+            --success: #27ae60;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            color: var(--text-color);
+            height: 100vh; /* distinct from 100% */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Prevent body scroll */
+        }
+
+        /* APP-LIKE CONTAINER */
+        .menu-container {
+            background-color: var(--card-bg);
+            width: 100%;
+            height: 100%;
+            padding: 25px;
+            text-align: center;
+            overflow-y: auto; /* Scroll content if needed */
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Center content vertically */
+        }
+
+        /* TYPOGRAPHY */
+        h1 { color: var(--secondary); font-size: 2rem; margin: 0 0 15px 0; }
+        h2 { font-size: 1.6rem; margin: 10px 0; }
+        p { font-size: 1.1rem; margin-bottom: 20px; color: #555; }
+
+        /* BIG INPUTS */
+        input[type="text"] {
+            padding: 15px;
+            width: 100%;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border: 1px solid #bdc3c7;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+
+        /* BIG BUTTONS */
+        button {
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            padding: 18px; /* Taller for touch */
+            width: 100%; /* Full width */
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 8px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            touch-action: manipulation;
+        }
+        button:active { transform: scale(0.98); opacity: 0.9; }
+        button:disabled { opacity: 0.5; background-color: #95a5a6; }
+        button.danger { background-color: var(--accent); }
+        button.success { background-color: var(--success); }
+        button.dark { background-color: #34495e; }
+
+        .hidden { display: none !important; }
+
+        /* PLAYER LIST */
+        .player-list {
+            list-style: none;
+            padding: 0;
+            width: 100%;
+            margin: 10px 0 20px 0;
+            text-align: left;
+        }
+        .player-list li {
+            background: white;
+            margin-bottom: 8px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        /* CARDS */
+        .role-card {
+            background: white;
+            padding: 30px 20px;
+            border: 3px dashed var(--secondary);
+            margin: 20px 0;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        /* BOARD & OVERLAYS */
+        .board-container {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: white;
+            z-index: 999;
+        }
+        iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+        .timer-overlay {
+            position: absolute;
+            top: 15px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(44, 62, 80, 0.95);
+            color: white;
+            padding: 8px 25px;
+            border-radius: 50px;
+            font-size: 1.4rem;
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        .controls-overlay {
+            position: absolute;
+            bottom: 25px; left: 20px; right: 20px;
+            pointer-events: auto;
+        }
+
+        .qr-box {
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+        
+        /* SCORING GRID */
+        .scoring-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- === MENU CONTAINER === -->
+    <div id="main-menu" class="menu-container">
+        
+        <!-- SCREEN 1: SETUP -->
+        <div id="screen-setup">
+            <h1>Conflicting Visions</h1>
+            <p>Host draws, others join via phone.</p>
+            
+            <div style="display:flex; justify-content:center;">
+                <input type="text" id="input-name" placeholder="Player Name" onkeypress="handleEnter(event)">
+                <button onclick="addPlayer()">Add</button>
+            </div>
+            <ul id="player-list-ul" class="player-list"></ul>
+            <p style="font-size:0.8rem; color:#7f8c8d">Add at least 3 players (4 is best)</p>
+            <button class="success" id="btn-start-game" onclick="startGame()" disabled>Start Game</button>
+        </div>
+
+        <!-- SCREEN 2: PASS DEVICE -->
+        <div id="screen-pass" class="hidden">
+            <h2>Pass the Device</h2>
+            <p>Hand this device to:</p>
+            <h1 id="pass-player-name" style="color:var(--accent); font-size: 2.5rem;">Name</h1>
+            <button onclick="showRole()" style="margin-top:20px;">I am <span id="btn-name-confirm"></span></button>
+        </div>
+
+        <!-- SCREEN 3: REVEAL ROLE -->
+        <div id="screen-role" class="hidden">
+            <h2>Your Secret Mission</h2>
+            <p>Read this silently, then hide it.</p>
+            <div class="role-card">
+                <div id="role-team-display" style="font-size:1.2rem; margin-bottom:10px;"></div>
+                <div id="role-prompt" style="color:var(--secondary); font-size:1.6rem; line-height:1.3;">...</div>
+            </div>
+            <p id="patron-msg" class="hidden">You are the <strong>PATRON</strong>.<br>You will judge the masterpiece.</p>
+            <button class="success" onclick="nextPlayer()">Got it, Next Player</button>
+        </div>
+
+        <!-- SCREEN 4: CONNECT & INSTRUCTIONS -->
+        <div id="screen-connect" class="hidden">
+            <h2>Ready to Draw!</h2>
+            <p><strong>Patron:</strong> Keep this screen open.</p>
+            <p><strong>Artists:</strong> Scan to draw on your phones.</p>
+            
+            <div class="qr-box">
+                <img id="qr-code-img" src="" alt="QR Code" width="150" height="150">
+            </div>
+            <p style="font-size:0.9rem">Or visit: <strong id="text-link" style="color:var(--secondary)"></strong></p>
+
+            <button class="success" onclick="startDrawingPhase()">Everyone Joined? Start Timer!</button>
+        </div>
+
+        <!-- SCREEN 5: SCORING -->
+        <div id="screen-scoring" class="hidden">
+            <h1>Judgment Day</h1>
+            <p><strong>Patron (<span id="score-patron-name"></span>)</strong>, reveal the prompts!</p>
+            
+            <div class="role-card" style="text-align:left;">
+                <div style="color:var(--secondary); margin-bottom:5px;">Team A: <strong id="final-prompt-a" style="color:#333"></strong></div>
+                <div style="color:var(--accent)">Team B: <strong id="final-prompt-b" style="color:#333"></strong></div>
+            </div>
+
+            <p>Who did the Patron guess correctly?</p>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                <button onclick="scoreRound('A')">Team A Only</button>
+                <button onclick="scoreRound('B')">Team B Only</button>
+                <button class="success" style="grid-column:span 2" onclick="scoreRound('BOTH')">BOTH! (Patron Wins)</button>
+                <button class="danger" style="grid-column:span 2" onclick="scoreRound('NONE')">NONE (Chaos)</button>
+            </div>
+
+            <h3>Current Standings</h3>
+            <ul id="scoreboard" class="player-list"></ul>
+            
+            <button class="dark" onclick="startRound()" style="width:100%; margin-top:10px;">Next Round</button>
+        </div>
+    </div>
+
+    <!-- === BOARD CONTAINER (Hidden until needed) === -->
+    <div id="screen-board" class="board-container hidden">
+        <div class="timer-overlay">
+            <span id="timer-display">03:00</span>
+        </div>
+        
+        <!-- Collaborative Whiteboard -->
+        <iframe id="whiteboard-frame" src=""></iframe>
+
+        <div class="controls-overlay">
+            <button id="btn-finish-early" class="danger" onclick="skipTimer()">Stop & Judge</button>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const WB_BASE_URL = "https://wbo.ophir.dev/boards/"; 
+
+        // --- GAME STATE ---
+        let players = [];
+        let currentRound = 0;
+        let patronIndex = 0;
+        let roleQueue = [];
+        let currentPrompts = {};
+        let currentRoles = {}; // Map: "PlayerName" -> "A", "B", or "PATRON"
+        let timerInterval;
+        let roomID = "";
+
+        const promptPairs = [
+            ["Alien Invasion", "Romantic Wedding"],
+            ["Zombie Apocalypse", "High School Prom"],
+            ["Jurassic Park", "Rock Concert"],
+            ["Olympic Games", "Prison Break"],
+            ["Santa's Workshop", "Bank Heist"],
+            ["Under the Sea", "Space Station"],
+            ["Haunted House", "Birthday Party"],
+            ["Cooking Show", "Wrestling Match"],
+            ["Pirate Ship", "Subway Train"],
+            ["The Zoo", "War Zone"],
+            ["Superheroes", "Dentist Office"],
+            ["Fashion Show", "Construction Site"]
+        ];
+
+        // --- DOM ELEMENTS ---
+        const elMenu = document.getElementById('main-menu');
+        const elBoard = document.getElementById('screen-board');
+        const elSetup = document.getElementById('screen-setup');
+        const elPass = document.getElementById('screen-pass');
+        const elRole = document.getElementById('screen-role');
+        const elConnect = document.getElementById('screen-connect');
+        const elScoring = document.getElementById('screen-scoring');
+        const iframe = document.getElementById('whiteboard-frame');
+
+        // --- SETUP FUNCTIONS ---
+        function handleEnter(e) { if(e.key === 'Enter') addPlayer(); }
+
+        function addPlayer() {
+            const input = document.getElementById('input-name');
+            const name = input.value.trim();
+            // Prevent duplicate names
+            if (name && !players.find(p => p.name === name)) {
+                players.push({name: name, score: 0});
+                input.value = '';
+                renderPlayerList();
+                // Allow start if 3+ players
+                if(players.length >= 3) document.getElementById('btn-start-game').disabled = false;
+            } else if (name) {
+                alert("Name already taken!");
+            }
+        }
+
+        function renderPlayerList() {
+            document.getElementById('player-list-ul').innerHTML = 
+                players.map(p => `<li>${p.name} <span>${p.score} pts</span></li>`).join('');
+        }
+
+        function startGame() {
+            elSetup.classList.add('hidden');
+            startRound();
+        }
+
+        // --- ROUND LOGIC ---
+        function startRound() {
+            // Reset UI
+            elScoring.classList.add('hidden');
+            elBoard.classList.add('hidden');
+            elMenu.classList.remove('hidden'); 
+            
+            // Generate Room ID
+            roomID = "CV-" + Date.now().toString().slice(-5) + Math.floor(Math.random()*100);
+            const fullBoardLink = WB_BASE_URL + roomID;
+
+            // Pre-load iframe
+            iframe.src = fullBoardLink;
+
+            // Setup QR Code
+            const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(fullBoardLink)}`;
+            document.getElementById('qr-code-img').src = qrApi;
+            document.getElementById('text-link').innerText = "wbo.ophir.dev/boards/" + roomID;
+
+            // Determine Patron (Sequential)
+            patronIndex = currentRound % players.length;
+            const patron = players[patronIndex];
+            
+            // Pick Prompts
+            const pair = promptPairs[Math.floor(Math.random() * promptPairs.length)];
+            const rand = Math.random() < 0.5;
+            currentPrompts = { A: rand ? pair[0] : pair[1], B: rand ? pair[1] : pair[0] };
+
+            // Assign Roles
+            roleQueue = [];
+            currentRoles = {};
+
+            // Get Artists (everyone except Patron)
+            let artists = players.filter((_, i) => i !== patronIndex);
+            // Shuffle Artists
+            artists.sort(() => Math.random() - 0.5);
+            
+            // Split Teams
+            const mid = Math.ceil(artists.length / 2);
+            
+            artists.forEach((p, i) => {
+                let r = i < mid ? 'A' : 'B';
+                currentRoles[p.name] = r;
+                roleQueue.push({
+                    name: p.name,
+                    role: r,
+                    prompt: r === 'A' ? currentPrompts.A : currentPrompts.B,
+                    isPatron: false
+                });
+            });
+
+            // Add Patron to queue (Last, so they hold device at end)
+            roleQueue.push({ 
+                name: patron.name, 
+                role: 'PATRON', 
+                prompt: null, 
+                isPatron: true 
+            });
+            
+            currentRound++;
+            nextPlayer(); 
+        }
+
+        let currentPlayerObj = null;
+
+        function nextPlayer() {
+            if (roleQueue.length === 0) {
+                // Done assigning
+                elRole.classList.add('hidden');
+                elConnect.classList.remove('hidden');
+                return;
+            }
+
+            elRole.classList.add('hidden');
+            elPass.classList.remove('hidden');
+            
+            currentPlayerObj = roleQueue.shift();
+            document.getElementById('pass-player-name').innerText = currentPlayerObj.name;
+            document.getElementById('btn-name-confirm').innerText = currentPlayerObj.name;
+        }
+
+        function showRole() {
+            elPass.classList.add('hidden');
+            elRole.classList.remove('hidden');
+            
+            const promptText = document.getElementById('role-prompt');
+            const teamDisplay = document.getElementById('role-team-display');
+            const patronMsg = document.getElementById('patron-msg');
+            
+            if (currentPlayerObj.isPatron) {
+                teamDisplay.innerText = "You are...";
+                promptText.innerText = "THE PATRON";
+                patronMsg.classList.remove('hidden');
+            } else {
+                teamDisplay.innerText = `Team ${currentPlayerObj.role}`;
+                promptText.innerText = `Draw: ${currentPlayerObj.prompt}`;
+                patronMsg.classList.add('hidden');
+            }
+        }
+
+        // --- DRAWING PHASE ---
+        function startDrawingPhase() {
+            elMenu.classList.add('hidden'); 
+            elBoard.classList.remove('hidden'); // Full Screen Board
+            
+            let timeLeft = 180; // 3 minutes
+            const display = document.getElementById('timer-display');
+            
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                let m = Math.floor(timeLeft / 60);
+                let s = timeLeft % 60;
+                display.innerText = `0${m}:${s < 10 ? '0'+s : s}`;
+                
+                if (timeLeft <= 0) {
+                    skipTimer();
+                }
+            }, 1000);
+        }
+
+        function skipTimer() {
+            clearInterval(timerInterval);
+            elBoard.classList.add('hidden');
+            elMenu.classList.remove('hidden');
+            goToScoring();
+        }
+
+        // --- SCORING PHASE ---
+        function goToScoring() {
+            elConnect.classList.add('hidden');
+            elScoring.classList.remove('hidden');
+            
+            const patronName = players[patronIndex].name;
+            document.getElementById('score-patron-name').innerText = patronName;
+            document.getElementById('final-prompt-a').innerText = currentPrompts.A;
+            document.getElementById('final-prompt-b').innerText = currentPrompts.B;
+            
+            renderScoreboard();
+        }
+
+        function scoreRound(result) {
+            const patron = players[patronIndex];
+
+            if (result === 'BOTH') {
+                // Perfect round: Patron gets 2, Artists get 1
+                patron.score += 2;
+                players.forEach(p => { if(p !== patron) p.score += 1; });
+                alert(`Correct! Patron gets 2pts, Artists get 1pt!`);
+            } else if (result === 'A') {
+                // Team A wins: Patron +1, Team A +1
+                patron.score += 1;
+                players.forEach(p => { if (currentRoles[p.name] === 'A') p.score += 1; });
+                alert(`Team A Wins! (Prompt: ${currentPrompts.A})`);
+            } else if (result === 'B') {
+                // Team B wins: Patron +1, Team B +1
+                patron.score += 1;
+                players.forEach(p => { if (currentRoles[p.name] === 'B') p.score += 1; });
+                alert(`Team B Wins! (Prompt: ${currentPrompts.B})`);
+            } else {
+                // None
+                alert("Chaos! Nobody gets points.");
+            }
+
+            renderScoreboard();
+        }
+
+        // --- THIS WAS MISSING BEFORE! ---
+        function renderScoreboard() {
+            // 1. Create a copy of players to sort (so we don't mess up turn order)
+            const sortedList = [...players].sort((a, b) => b.score - a.score);
+
+            // 2. Render HTML
+            const board = document.getElementById('scoreboard');
+            board.innerHTML = sortedList.map(p => `
+                <li>
+                    ${p.name}
+                    <strong>${p.score} pts</strong>
+                </li>
+            `).join('');
+        }
+
+    </script>
+</body>
+</html>
